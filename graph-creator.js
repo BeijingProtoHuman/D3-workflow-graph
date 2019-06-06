@@ -146,16 +146,20 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
           // TODO better error handling
           try {
             var jsonObj = JSON.parse(txtRes);
+            //init thisGraph.egid to 0
+            thisGraph.egid = 0;
             thisGraph.deleteGraph(true);
             thisGraph.nodes = jsonObj.nodes;
             thisGraph.setIdCt(jsonObj.nodes.length + 1);
             var newEdges = jsonObj.edges;
             newEdges.forEach(function (e, i) {
               newEdges[i] = {
+                id: i,
                 source: thisGraph.nodes.filter(function (n) { return n.id == e.source; })[0],
                 target: thisGraph.nodes.filter(function (n) { return n.id == e.target; })[0],
                 func: e.func
               };
+              thisGraph.egid++;
             });
             thisGraph.edges = newEdges;
             thisGraph.updateGraph();
@@ -216,6 +220,7 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
     if (doDelete) {
       thisGraph.nodes = [];
       thisGraph.edges = [];
+      thisGraph.egid = 0;
       thisGraph.updateGraph();
     }
   };
