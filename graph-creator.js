@@ -8,6 +8,8 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
   var settings = {
     appendElSpec: "#graph"
   };
+  var jobList = [];
+  var jobId = 0;
   // define graphcreator object
   var GraphCreator = function (svg, nodes, edges) {
     var thisGraph = this;
@@ -131,6 +133,11 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
       saveAs(blob, "mydag.json");
     });
 
+     //Jquery event hanlder
+    $('#jobContainer').on('click', function (event) {
+      markSelectedJob(jobList, parseInt(event.target.value));
+    });
+
 
     // handle uploaded data
     d3.select("#upload-input").on("click", function () {
@@ -164,6 +171,10 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
               thisGraph.egid++;
             });
             thisGraph.edges = newEdges;
+
+            let newJob = new Job(thisGraph.nodes, thisGraph.edges);
+            addJob(jobList, newJob)
+            markSelectedJob(jobList, newJob.id);
             thisGraph.updateGraph();
           } catch (err) {
             window.alert("Error parsing uploaded file\nerror message: " + err.message);
@@ -178,6 +189,7 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
 
     });
 
+    
     // handle delete graph
     d3.select("#delete-graph").on("click", function () {
       thisGraph.deleteGraph(false);
@@ -526,7 +538,7 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
     } else if (state.graphMouseDown && d3.event.shiftKey) {
       //get xy coordinations 
       let xycoords = d3.mouse(thisGraph.svgG.node());
-      
+
       // reset form before create new one
       $('input[name="txt_node_id"]').val(consts.defaultTitle);
       $('input[name="txt_func"]').val('');
@@ -539,7 +551,7 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
         let title = $('input[name="txt_node_id"]').val();
         let func = $('input[name="txt_func"]').val();
         let describe = $('input[name="txt_statu"]').val();
-        var d = { id: thisGraph.idct++, title: title? title : consts.defaultTitle, func: func, describe: describe, x: xycoords[0], y: xycoords[1] };
+        var d = { id: thisGraph.idct++, title: title ? title : consts.defaultTitle, func: func, describe: describe, x: xycoords[0], y: xycoords[1] };
         thisGraph.nodes.push(d);
         thisGraph.updateGraph();
       });
@@ -740,85 +752,119 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
   var graph = new GraphCreator(svg, nodes, edges);
   graph.setIdCt(0);
   graph.updateGraph();
-})(window.d3, window.saveAs, window.Blob);
 
-function formatNodes(nodesArr, xDistance, yDistance, direction) {
-  //TODO add format direction
-  //find nodes borders
-  let leftBorder = findBorderCoordinate(nodesArr, true, false);
-  let rightBorder = findBorderCoordinate(nodesArr, true, true);
-  let startNode = findStartNode(nodesArr.slice(), true);
-  //TODO just for test
+  function formatNodes(nodesArr, xDistance, yDistance, direction) {
+    //TODO add format direction
+    //find nodes borders
+    let leftBorder = findBorderCoordinate(nodesArr, true, false);
+    let rightBorder = findBorderCoordinate(nodesArr, true, true);
+    let startNode = findStartNode(nodesArr.slice(), true);
+    //TODO just for test
 
 
-  let blockCount = 0;
-  console.log(leftBorder);
-  console.log(rightBorder);
+    let blockCount = 0;
+    console.log(leftBorder);
+    console.log(rightBorder);
 
-  while (rightBorder > (leftBorder + (blockCount - 1) * xDistance)) {
-    let calculateNodes = nodesArr.filter(e => {
-      return e.x > (blockCount - 0.5) * xDistance && e.x <= (blockCount + 0.5) * xDistance;
-    });
-    //TODO stackBlitz bug
-    calculateNodes.forEach(e => {
-      e.x = leftBorder + blockCount * xDistance;
-    });
-    blockCount++;
-    //TODO TOP,BOTTOM, MIDDLE alignment
-    //For now only care about the top one and then offset
-    calculateNodes.sort((a, b) => {
-      return a.y - b.y;
-    })
-    if (calculateNodes.length > 1) {
-      let topYCoordinate = calculateNodes[0].y;
-      calculateNodes.forEach((e, i) => {
-        //TODO change nodeArr[0] to root node
-        e.y = startNode.y + i * yDistance;
+    while (rightBorder > (leftBorder + (blockCount - 1) * xDistance)) {
+      let calculateNodes = nodesArr.filter(e => {
+        return e.x > (blockCount - 0.5) * xDistance && e.x <= (blockCount + 0.5) * xDistance;
       });
+      //TODO stackBlitz bug
+      calculateNodes.forEach(e => {
+        e.x = leftBorder + blockCount * xDistance;
+      });
+      blockCount++;
+      //TODO TOP,BOTTOM, MIDDLE alignment
+      //For now only care about the top one and then offset
+      calculateNodes.sort((a, b) => {
+        return a.y - b.y;
+      })
+      if (calculateNodes.length > 1) {
+        let topYCoordinate = calculateNodes[0].y;
+        calculateNodes.forEach((e, i) => {
+          //TODO change nodeArr[0] to root node
+          e.y = startNode.y + i * yDistance;
+        });
+      }
+    }
+
+    function findBorderCoordinate(nodeArr, isXCoordinate, isMax) {
+      const coordinateArray = nodeArr.map(e => {
+        return isXCoordinate ? e.x : e.y;
+      })
+
+      coordinateArray.sort((a, b) => {
+        return isMax ? b - a : a - b;
+      });
+
+      return coordinateArray[0];
+    }
+
+    function findStartNode(nodeArr, isXCoordinate) {
+      nodeArr.sort((a, b) => {
+        return isXCoordinate ? a.x - b.x : a.y - b - y;
+      });
+      return nodeArr[0];
+    }
+
+
+  }
+
+  function generateJobSwitcher(JobList) {
+    let jobSwitcherString = '';
+    JobList.forEach(job => {
+      jobSwitcherString = jobSwitcherString + `<div class="job-item"><button class="job-btn" value="${job.id}">${job.jobName}</button></div>`
+    });
+    $('#jobContainer').html(jobSwitcherString);
+  }
+
+  function markSelectedJob(nodesList, jobId) {
+    let nodeIndex;
+    $('.job-selected').removeClass('job-selected');
+    if (nodesList) {
+
+      nodesList.forEach((e, i) => {
+        if (e.id === jobId) {
+          nodeIndex = i;
+        }
+      });
+      $(`#jobContainer div:nth-child(${nodeIndex + 1})`).addClass('job-selected');
     }
   }
 
-  function findBorderCoordinate(nodeArr, isXCoordinate, isMax) {
-    const coordinateArray = nodeArr.map(e => {
-      return isXCoordinate ? e.x : e.y;
-    })
-
-    coordinateArray.sort((a, b) => {
-      return isMax ? b - a : a - b;
-    });
-
-    return coordinateArray[0];
+  function addJob(jobList, newJob) {
+    jobList.push(newJob);
+    jobId++;
+    generateJobSwitcher(jobList);
   }
 
-  function findStartNode(nodeArr, isXCoordinate) {
-      nodeArr.sort((a, b)=> {
-        return isXCoordinate? a.x - b.x : a.y - b-y;
-      });
-      return nodeArr[0];
+  function Job(nodes, edges) {
+    this.jobName = `Job${jobId + 1}`;
+    this.id = jobId;
+    this.nodes = nodes;
+    this.edges = edges;
   }
-
 
   //find a root node for the graph which has no parent node with smaller id
-}
+  // function findRootNode(nodes, edges) {
+  //   // value for each entry is the parentIndex;
+  //   let calculatedMap = new Map();
+  //   let rootNodeId;
+  //   nodes.forEach(e => {
+  //     calculatedMap.set(e.id, [])
+  //   });
 
-// function findRootNode(nodes, edges) {
-//   // value for each entry is the parentIndex;
-//   let calculatedMap = new Map();
-//   let rootNodeId;
-//   nodes.forEach(e => {
-//     calculatedMap.set(e.id, [])
-//   });
+  //   edges.forEach(e => {
+  //     calculatedMap.get(parseInt(e.target.id)).push(e.source.id);
+  //   });
 
-//   edges.forEach(e => {
-//     calculatedMap.get(parseInt(e.target.id)).push(e.source.id);
-//   });
+  //   calculatedMap.forEach( (value, key)=> {
+  //       if(!value.length) {
+  //         if(!rootNodeId || (rootNodeId && key < rootNodeId) ) {
 
-//   calculatedMap.forEach( (value, key)=> {
-//       if(!value.length) {
-//         if(!rootNodeId || (rootNodeId && key < rootNodeId) ) {
-
-//         }
-//       }
-//   });
-// }
-
+  //         }
+  //       }
+  //   });
+  // }
+})(window.d3, window.saveAs, window.Blob);
