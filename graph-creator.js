@@ -776,7 +776,7 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
 
     while (rightBorder > (leftBorder + (blockCount - 1) * xDistance)) {
       let calculateNodes = nodesArr.filter(e => {
-        return e.x > (blockCount - 0.5) * xDistance && e.x <= (blockCount + 0.5) * xDistance;
+        return e.x > (startNode.x + ((blockCount - 0.5) * xDistance)) && e.x <= startNode.x +((blockCount + 0.5) * xDistance);
       });
       //TODO stackBlitz bug
       calculateNodes.forEach(e => {
