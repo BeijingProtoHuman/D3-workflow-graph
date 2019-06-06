@@ -150,6 +150,8 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
             thisGraph.egid = 0;
             thisGraph.deleteGraph(true);
             thisGraph.nodes = jsonObj.nodes;
+
+            formatNodes(thisGraph.nodes, 300, 200);
             thisGraph.setIdCt(jsonObj.nodes.length + 1);
             var newEdges = jsonObj.edges;
             newEdges.forEach(function (e, i) {
@@ -307,25 +309,25 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
     }
 
     console.log(thisGraph.edges);
-    if(d3.event.shiftKey) {
+    if (d3.event.shiftKey) {
       $("#edgeModal").modal();
-        /**
-         * handle save method
-        */
-        $('#edge_func').val(d.func);
-        $('#edge_func').focus();
-        $('#edge_submit').unbind('click').click(function () {
-          let func = $('input[name="edge_func"]').val();
-          d.func = func;
-          $(`textPath#${d.id}`).text(func);
-          thisGraph.updateGraph();
-        });
-        //add enter key event
-        $("#edge_func").keypress(function(e) {
-          if(e.which == 13) {
-            $("#edge_submit").click();
-          }
-        })
+      /**
+       * handle save method
+      */
+      $('#edge_func').val(d.func);
+      $('#edge_func').focus();
+      $('#edge_submit').unbind('click').click(function () {
+        let func = $('input[name="edge_func"]').val();
+        d.func = func;
+        $(`textPath#${d.id}`).text(func);
+        thisGraph.updateGraph();
+      });
+      //add enter key event
+      $("#edge_func").keypress(function (e) {
+        if (e.which == 13) {
+          $("#edge_submit").click();
+        }
+      })
     }
     var prevEdge = state.selectedEdge;
     if (!prevEdge || prevEdge !== d) {
@@ -383,15 +385,15 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
     //       this.blur();
     //     }
     //   })
-      // .on("blur", function (d) {
-      //   d.title = this.textContent;
-      //   // thisGraph.insertTitleLinebreaks(d3node, d.title);
-      //   d3.select(this.parentElement).remove();
-      // });
+    // .on("blur", function (d) {
+    //   d.title = this.textContent;
+    //   // thisGraph.insertTitleLinebreaks(d3node, d.title);
+    //   d3.select(this.parentElement).remove();
+    // });
 
     //return d3txt;
   };
-  const fuckingoff=function (d, d3node,thisGraph) {
+  const fuckingoff = function (d, d3node, thisGraph) {
     // d.title = d3txt.textContent;
     //console.log(d3node);
     thisGraph.insertTitleLinebreaks(d3node, d.title);
@@ -414,14 +416,17 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
 
     if (mouseDownNode !== d) {
       // we're in a different node: create new edge for mousedown edge and add to graph
-      var newEdge = { id: thisGraph.egid++, source: mouseDownNode, target: d, func: 'default'};
-      if(d3.event.shiftKey) {
+      var newEdge = { id: thisGraph.egid++, source: mouseDownNode, target: d, func: 'default' };
+      if (d3.event.shiftKey) {
+        //reset edgeModel input
+        $('#edge_func').val('');
+        //reset area ends
         $("#edgeModal").modal();
         /**
          * handle save method
         */
-       $('#edge_func').val(d.func);
-       $('#edge_func').focus();
+        $('#edge_func').val(d.func);
+        $('#edge_func').focus();
         $('#edge_submit').unbind('click').click(function () {
           let func = $('input[name="edge_func"]').val();
           newEdge.func = func;
@@ -429,8 +434,8 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
           console.log($(`textPath#${newEdge.id}`).html())
         });
         //add enter key event
-        $("#edge_func").keypress(function(e) {
-          if(e.which == 13) {
+        $("#edge_func").keypress(function (e) {
+          if (e.which == 13) {
             $("#edge_submit").click();
           }
         })
@@ -464,7 +469,7 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
           /**
            * handle save method
           */
-          
+
           $('#btn_submit').unbind('click').click(function () {
             //console.log('inner id' + d.id);
             let title = $('input[name="txt_node_id"]').val();
@@ -474,18 +479,18 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
             d.func = func;
             d.describe = describe
             d3node.selectAll("text").remove();
-            fuckingoff(d, d3node,thisGraph)
+            fuckingoff(d, d3node, thisGraph)
           });
           //add enter key event
-          $("#txt_statu").keypress(function(e) {
-            if(e.which == 13) {
+          $("#txt_statu").keypress(function (e) {
+            if (e.which == 13) {
               $("#btn_submit").click();
             }
           })
 
         } else {
-          if (state.selectedEdge) { 
-            if(d3.event.shiftKey) {
+          if (state.selectedEdge) {
+            if (d3.event.shiftKey) {
               console.log('yes')
             } else {
               thisGraph.removeSelectFromEdge();
@@ -519,11 +524,31 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
       // dragged not clicked
       state.justScaleTransGraph = false;
     } else if (state.graphMouseDown && d3.event.shiftKey) {
-      // clicked not dragged from svg
-      var xycoords = d3.mouse(thisGraph.svgG.node()),
-        d = { id: thisGraph.idct++, title: consts.defaultTitle, func: null, describe: null, x: xycoords[0], y: xycoords[1] };
-      thisGraph.nodes.push(d);
-      thisGraph.updateGraph();
+      //get xy coordinations 
+      let xycoords = d3.mouse(thisGraph.svgG.node());
+      
+      // reset form before create new one
+      $('input[name="txt_node_id"]').val(consts.defaultTitle);
+      $('input[name="txt_func"]').val('');
+      $('input[name="txt_statu"]').val('');
+      //reset area end
+
+      $("#myModal").modal();
+      $('#btn_submit').unbind('click').click(function () {
+        //console.log('inner id' + d.id);
+        let title = $('input[name="txt_node_id"]').val();
+        let func = $('input[name="txt_func"]').val();
+        let describe = $('input[name="txt_statu"]').val();
+        var d = { id: thisGraph.idct++, title: title? title : consts.defaultTitle, func: func, describe: describe, x: xycoords[0], y: xycoords[1] };
+        thisGraph.nodes.push(d);
+        thisGraph.updateGraph();
+      });
+      //add enter key event
+      $("#txt_statu").keypress(function (e) {
+        if (e.which == 13) {
+          $("#btn_submit").click();
+        }
+      })
     } else if (state.shiftNodeDrag) {
       // dragged from node
       state.shiftNodeDrag = false;
@@ -601,7 +626,7 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
       })
       .on("mousedown", function (d) {
         thisGraph.pathMouseDown.call(thisGraph, d3.select(this), d);
-        }
+      }
       )
       .on("mouseup", function (d) {
         state.mouseDownLink = null;
@@ -610,23 +635,23 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
     p.append("text").attr("dy", -20)
       .append("textPath")
       .attr('id', d => {
-        return ''+d.id;
+        return '' + d.id;
       })
-      
+
       .attr("text-anchor", "start")
       .style("font-size", 25)
       .style("fill", "#000")
       .style("text-anchor", "middle")
       .attr("startOffset", "50%")
-      .attr("xlink:href", function(d) {
+      .attr("xlink:href", function (d) {
         console.log(d.id);
         return "#path" + d.id;
       })
-      .text(function(d) {
-        
+      .text(function (d) {
+
         return d.func;
       });
-      
+
     // remove old links
     paths.exit().remove();
 
@@ -685,7 +710,7 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
 
   /**** MAIN ****/
 
-  
+
   // warn the user when leaving
   window.onbeforeunload = function () {
     return "Make sure to save your graph locally before leaving :-)";
@@ -716,3 +741,84 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
   graph.setIdCt(0);
   graph.updateGraph();
 })(window.d3, window.saveAs, window.Blob);
+
+function formatNodes(nodesArr, xDistance, yDistance, direction) {
+  //TODO add format direction
+  //find nodes borders
+  let leftBorder = findBorderCoordinate(nodesArr, true, false);
+  let rightBorder = findBorderCoordinate(nodesArr, true, true);
+  let startNode = findStartNode(nodesArr.slice(), true);
+  //TODO just for test
+
+
+  let blockCount = 0;
+  console.log(leftBorder);
+  console.log(rightBorder);
+
+  while (rightBorder > (leftBorder + (blockCount - 1) * xDistance)) {
+    let calculateNodes = nodesArr.filter(e => {
+      return e.x > (blockCount - 0.5) * xDistance && e.x <= (blockCount + 0.5) * xDistance;
+    });
+    //TODO stackBlitz bug
+    calculateNodes.forEach(e => {
+      e.x = leftBorder + blockCount * xDistance;
+    });
+    blockCount++;
+    //TODO TOP,BOTTOM, MIDDLE alignment
+    //For now only care about the top one and then offset
+    calculateNodes.sort((a, b) => {
+      return a.y - b.y;
+    })
+    if (calculateNodes.length > 1) {
+      let topYCoordinate = calculateNodes[0].y;
+      calculateNodes.forEach((e, i) => {
+        //TODO change nodeArr[0] to root node
+        e.y = startNode.y + i * yDistance;
+      });
+    }
+  }
+
+  function findBorderCoordinate(nodeArr, isXCoordinate, isMax) {
+    const coordinateArray = nodeArr.map(e => {
+      return isXCoordinate ? e.x : e.y;
+    })
+
+    coordinateArray.sort((a, b) => {
+      return isMax ? b - a : a - b;
+    });
+
+    return coordinateArray[0];
+  }
+
+  function findStartNode(nodeArr, isXCoordinate) {
+      nodeArr.sort((a, b)=> {
+        return isXCoordinate? a.x - b.x : a.y - b-y;
+      });
+      return nodeArr[0];
+  }
+
+
+  //find a root node for the graph which has no parent node with smaller id
+}
+
+// function findRootNode(nodes, edges) {
+//   // value for each entry is the parentIndex;
+//   let calculatedMap = new Map();
+//   let rootNodeId;
+//   nodes.forEach(e => {
+//     calculatedMap.set(e.id, [])
+//   });
+
+//   edges.forEach(e => {
+//     calculatedMap.get(parseInt(e.target.id)).push(e.source.id);
+//   });
+
+//   calculatedMap.forEach( (value, key)=> {
+//       if(!value.length) {
+//         if(!rootNodeId || (rootNodeId && key < rootNodeId) ) {
+
+//         }
+//       }
+//   });
+// }
+
