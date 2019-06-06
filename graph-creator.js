@@ -133,9 +133,16 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
       saveAs(blob, "mydag.json");
     });
 
-     //Jquery event hanlder
+     //Jquery event hanlder*****************************************************
+     //*************************************************************************
     $('#jobContainer').on('click', function (event) {
-      markSelectedJob(jobList, parseInt(event.target.value));
+      thisGraph.deleteGraph(true);
+      let currentJob = markSelectedJob(jobList, parseInt(event.target.value));
+      thisGraph.egid = currentJob.edgeId;
+      thisGraph.idct = currentJob.idct;
+      thisGraph.nodes = currentJob.nodes;
+      thisGraph.edges = currentJob.edges;
+      thisGraph.updateGraph();
     });
 
 
@@ -172,7 +179,7 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
             });
             thisGraph.edges = newEdges;
 
-            let newJob = new Job(thisGraph.nodes, thisGraph.edges);
+            let newJob = new Job(thisGraph.nodes, thisGraph.edges, thisGraph.egid, thisGraph.idct);
             addJob(jobList, newJob)
             markSelectedJob(jobList, newJob.id);
             thisGraph.updateGraph();
@@ -819,18 +826,20 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
     $('#jobContainer').html(jobSwitcherString);
   }
 
-  function markSelectedJob(nodesList, jobId) {
+  function markSelectedJob(jobsList, jobId) {
     let nodeIndex;
     $('.job-selected').removeClass('job-selected');
-    if (nodesList) {
+    if (jobsList) {
 
-      nodesList.forEach((e, i) => {
+      jobsList.forEach((e, i) => {
         if (e.id === jobId) {
           nodeIndex = i;
         }
       });
       $(`#jobContainer div:nth-child(${nodeIndex + 1})`).addClass('job-selected');
     }
+
+    return jobsList[nodeIndex];
   }
 
   function addJob(jobList, newJob) {
@@ -839,11 +848,16 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
     generateJobSwitcher(jobList);
   }
 
-  function Job(nodes, edges) {
+  // function updateView(currentJob) {
+  // }
+
+  function Job(nodes, edges, edgeId, idct) {
     this.jobName = `Job${jobId + 1}`;
     this.id = jobId;
     this.nodes = nodes;
     this.edges = edges;
+    this.edgeId = edgeId;
+    this.idct = idct;
   }
 
   //find a root node for the graph which has no parent node with smaller id
