@@ -233,6 +233,7 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
   };
 
   GraphCreator.prototype.deleteGraph = function (skipPrompt) {
+    d3.selectAll('text').remove();
     var thisGraph = this,
       doDelete = true;
     if (!skipPrompt) {
