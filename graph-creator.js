@@ -8,8 +8,10 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
   var settings = {
     appendElSpec: "#graph"
   };
-  var jobList = [];
+  //Jobs related variable
+  var jobsList = [];
   var jobId = 0;
+  var selectedJob = null;
   // define graphcreator object
   var GraphCreator = function (svg, nodes, edges) {
     var thisGraph = this;
@@ -133,18 +135,30 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
       saveAs(blob, "mydag.json");
     });
 
-     //Jquery event hanlder*****************************************************
-     //*************************************************************************
+    //Jquery event hanlder*****************************************************
+    //*************************************************************************
     $('#jobContainer').on('click', function (event) {
       thisGraph.deleteGraph(true);
-      let currentJob = markSelectedJob(jobList, parseInt(event.target.value));
-      thisGraph.egid = currentJob.edgeId;
-      thisGraph.idct = currentJob.idct;
-      thisGraph.nodes = currentJob.nodes;
-      thisGraph.edges = currentJob.edges;
-      thisGraph.updateGraph();
+      selectJobAndUpdateView(thisGraph, jobsList, parseInt(event.target.value));
+
     });
 
+    $('#jobAdder').on('click', () => {
+      thisGraph.deleteGraph(true);
+      let newJob = new Job([], [], 0, 0);
+      addJob(jobsList, newJob);
+      selectJobAndUpdateView(thisGraph, jobsList, newJob.id);
+    });
+
+    $('#jobDelete').on('click', ()=>{
+      let deletedJobId = 2;
+      let nextJobId = deleteJob(jobsList, deletedJobId);
+      if(nextJobId > 0) {
+        generateJobSwitcher(jobsList);
+        selectJobAndUpdateView(thisGraph, jobsList, nextJobId);
+      } else {
+      }
+    });
 
     // handle uploaded data
     d3.select("#upload-input").on("click", function () {
@@ -180,9 +194,8 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
             thisGraph.edges = newEdges;
 
             let newJob = new Job(thisGraph.nodes, thisGraph.edges, thisGraph.egid, thisGraph.idct);
-            addJob(jobList, newJob)
-            markSelectedJob(jobList, newJob.id);
-            thisGraph.updateGraph();
+            addJob(jobsList, newJob)
+            selectJobAndUpdateView(thisGraph, jobsList, newJob.id);
           } catch (err) {
             window.alert("Error parsing uploaded file\nerror message: " + err.message);
             return;
@@ -196,7 +209,7 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
 
     });
 
-    
+
     // handle delete graph
     d3.select("#delete-graph").on("click", function () {
       thisGraph.deleteGraph(false);
@@ -776,7 +789,7 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
 
     while (rightBorder > (leftBorder + (blockCount - 1) * xDistance)) {
       let calculateNodes = nodesArr.filter(e => {
-        return e.x > (startNode.x + ((blockCount - 0.5) * xDistance)) && e.x <= startNode.x +((blockCount + 0.5) * xDistance);
+        return e.x > (startNode.x + ((blockCount - 0.5) * xDistance)) && e.x <= startNode.x + ((blockCount + 0.5) * xDistance);
       });
       //TODO stackBlitz bug
       calculateNodes.forEach(e => {
@@ -819,16 +832,17 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
 
   }
 
-  function generateJobSwitcher(JobList) {
+  function generateJobSwitcher(jobsList) {
     let jobSwitcherString = '';
-    JobList.forEach(job => {
+    jobsList.forEach(job => {
       jobSwitcherString = jobSwitcherString + `<div class="job-item"><button class="job-btn" value="${job.id}">${job.jobName}</button></div>`
     });
     $('#jobContainer').html(jobSwitcherString);
   }
 
-  function markSelectedJob(jobsList, jobId) {
+  function selectJobAndUpdateView(thisGraph, jobsList, jobId) {
     let nodeIndex;
+    let currentJob;
     $('.job-selected').removeClass('job-selected');
     if (jobsList) {
 
@@ -840,13 +854,50 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
       $(`#jobContainer div:nth-child(${nodeIndex + 1})`).addClass('job-selected');
     }
 
-    return jobsList[nodeIndex];
+    currentJob = jobsList[nodeIndex];
+    selectedJob = currentJob;
+    thisGraph.egid = currentJob.edgeId;
+    thisGraph.idct = currentJob.idct;
+    thisGraph.nodes = currentJob.nodes;
+    thisGraph.edges = currentJob.edges;
+    thisGraph.updateGraph();
   }
 
-  function addJob(jobList, newJob) {
-    jobList.push(newJob);
+
+  //this function will return the newAdded job id number
+  function addJob(jobsList, newJob) {
+    jobsList.push(newJob);
     jobId++;
-    generateJobSwitcher(jobList);
+    generateJobSwitcher(jobsList);
+    return jobId - 1;
+  }
+
+  //this function has four condition and will select or return the job 
+  //1. delete one is not selected job
+  //2. it is selected one but not the last one. go back to the same index in the list
+  //3. it is the last one in the list without an empty list
+  //4. it is the last only item in the job list
+  function deleteJob(jobsList, deleteJobId) {
+    //TODO add a selectedJob global variable
+    let deleteIndex;
+    if(jobsList) {
+      jobsList.forEach((e,i) =>{
+        if(e.id === parseInt(deleteJobId)) {
+          deleteIndex = i;
+          jobsList.splice(i,1);
+        }
+      });
+      if(selectedJob && selectedJob.id === deleteJobId) {
+        if(jobsList.length > 0 && jobsList[deleteIndex]) {
+          return jobsList[deleteIndex].id;
+        } else if(jobsList.length > 0 && !jobsList[deleteIndex]) { 
+          return jobsList[deleteIndex-1].id;
+        }
+      } else {
+        return selectedJob.id;
+      }
+    }
+    return -1;
   }
 
   // function updateView(currentJob) {

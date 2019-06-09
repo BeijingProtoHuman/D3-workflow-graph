@@ -105,6 +105,7 @@ path.link.selected {
     color: white;
     height: 100%;
     min-width: 150px;
+    overflow: auto;
 }
 .job-item {}
 .job-btn {
