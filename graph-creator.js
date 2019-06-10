@@ -870,8 +870,9 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
       let calculateNodes = nodesArr.filter(e => {
         return e.x > (startNode.x + ((blockCount - 0.5) * xDistance)) && e.x <= startNode.x + ((blockCount + 0.5) * xDistance);
       });
-      //TODO stackBlitz bug
+
       calculateNodes.forEach(e => {
+        //TODO leftBorder could be replaced by other parameter which is used to relocate the whole diagram
         e.x = leftBorder + blockCount * xDistance;
       });
       blockCount++;
@@ -883,29 +884,29 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
       if (calculateNodes.length > 1) {
         let topYCoordinate = calculateNodes[0].y;
         calculateNodes.forEach((e, i) => {
-          //TODO change nodeArr[0] to root node
           e.y = startNode.y + i * yDistance;
         });
       }
     }
 
     function findBorderCoordinate(nodeArr, isXCoordinate, isMax) {
+      let resultCoordinate;
       const coordinateArray = nodeArr.map(e => {
         return isXCoordinate ? e.x : e.y;
       })
 
-      coordinateArray.sort((a, b) => {
-        return isMax ? b - a : a - b;
-      });
+      resultCoordinate = coordinateArray.reduce((a,b) => {
+        return isMax ? (a > b ? a : b) : (a < b ? a : b);
+      })
 
-      return coordinateArray[0];
+      return resultCoordinate;
     }
 
     function findStartNode(nodeArr, isXCoordinate) {
-      nodeArr.sort((a, b) => {
-        return isXCoordinate ? a.x - b.x : a.y - b - y;
+      let startNode = nodeArr.reduce((a, b) =>  {
+        return isXCoordinate ? ( a.x < b.x ? a : b ) : ( a.y < b.y ? a : b );
       });
-      return nodeArr[0];
+      return startNode;
     }
 
 
