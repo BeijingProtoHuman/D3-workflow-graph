@@ -12,6 +12,15 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
   var jobsList = [];
   var jobId = 0;
   var selectedJob = null;
+  var editJobOrNot = false;
+
+  let jobAdderTemplate = {
+    name: 'Job Info', content: [{
+      name: 'Job Name', inputId: 'jobName', type: 'text', optionInfo: {
+      }, defaultValue: 'Job Name'
+    }]
+  };
+
   // define graphcreator object
   var GraphCreator = function (svg, nodes, edges) {
     var thisGraph = this;
@@ -22,9 +31,28 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
      * 
      */
     //console.log(this);
-
     thisGraph.nodes = nodes || [];
     thisGraph.edges = edges || [];
+
+    //first Job init region
+    let addJobTemplate = new ModalTemplate(jobAdderTemplate.name, jobAdderTemplate.content);
+    generateModalDynamically(addJobTemplate);
+    $('#dynamicModal').modal();
+    $('input[name="Job Name"]').focus();
+    $('#dynamic_submit').unbind('click').click(function () {
+      let jobName = $('input[name="Job Name"]').val();
+      thisGraph.deleteGraph(true);
+      let newJob = new Job([], [], 0, 0, jobName);
+      addJob(jobsList, newJob);
+      selectJobAndUpdateView(thisGraph, jobsList, newJob.id);
+    });
+    //add enter key event
+    $("#dynamic_submit").keypress(function (e) {
+      if (e.which == 13) {
+        $("#dynamic_submit").click();
+      }
+    })
+    // region ends
 
     thisGraph.state = {
       selectedNode: null,
@@ -131,33 +159,83 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
       thisGraph.edges.forEach(function (val, i) {
         saveEdges.push({ source: val.source.id, target: val.target.id, func: val.func });
       });
-      var blob = new Blob([window.JSON.stringify({ "nodes": thisGraph.nodes, "edges": saveEdges })], { type: "text/plain;charset=utf-8" });
+      var blob = new Blob([window.JSON.stringify({ "job": { name: selectedJob.name }, "nodes": thisGraph.nodes, "edges": saveEdges })], { type: "text/plain;charset=utf-8" });
       saveAs(blob, "mydag.json");
     });
 
     //Jquery event hanlder*****************************************************
     //*************************************************************************
+
+    //the job select and job delete work is actually here
     $('#jobContainer').on('click', function (event) {
-      thisGraph.deleteGraph(true);
-      selectJobAndUpdateView(thisGraph, jobsList, parseInt(event.target.value));
+      let operationItem = event.target.value.split(" ");
+      if (operationItem.length === 1) {
+        if (editJobOrNot) {
+          //when in edit mode click job item will trigger job Editor
+          $('#dynamicModal').modal();
+          $('input[name="Job Name"]').val(event.target.innerHTML);
+          $('input[name="Job Name"]').focus();
+          $('#dynamic_submit').unbind('click').click(function () {
+            let jobName = $('input[name="Job Name"]').val();
+            let operatedJob = getJobById(jobsList, parseInt(event.target.value));
+            operatedJob.name = jobName;
+            event.target.innerHTML = operatedJob.name;
+          });
+          //add enter key event
+          $("#dynamic_submit").keypress(function (e) {
+            if (e.which == 13) {
+              $("#dynamic_submit").click();
+            }
+          })
+        } else {
+          selectJobAndUpdateView(thisGraph, jobsList, parseInt(event.target.value));
+        }
+      } else {
+        inAndOutEditMode();
+        let deletedJobId = parseInt(operationItem[1]);
+        let nextJobId = deleteJob(jobsList, deletedJobId);
+        if (nextJobId >= 0) {
+          generateJobSwitcher(jobsList);
+          selectJobAndUpdateView(thisGraph, jobsList, nextJobId);
+        } else {
+          generateJobSwitcher(jobsList);
+          $('#jobAdder').click();
+        }
+      }
 
     });
 
     $('#jobAdder').on('click', () => {
-      thisGraph.deleteGraph(true);
-      let newJob = new Job([], [], 0, 0);
-      addJob(jobsList, newJob);
-      selectJobAndUpdateView(thisGraph, jobsList, newJob.id);
+      // let testTemplate = {
+      //   name: 'test D Model', content: [{
+      //     contentName: 'testContentName', contentType: 'text', optionInfo: {
+      //     }, defaultValue: 'defaultValue'
+      //   }]
+      // };
+      let addJobTemplate = new ModalTemplate(jobAdderTemplate.name, jobAdderTemplate.content);
+      generateModalDynamically(addJobTemplate);
+
+      $('#dynamicModal').modal();
+      // $('#edge_func').val(d.func);
+      // $('#edge_func').focus();
+      $('#dynamic_submit').unbind('click').click(function () {
+        let jobName = $('input[name="Job Name"]').val();
+        thisGraph.deleteGraph(true);
+        let newJob = new Job([], [], 0, 0, jobName);
+        addJob(jobsList, newJob);
+        selectJobAndUpdateView(thisGraph, jobsList, newJob.id);
+      });
+      //add enter key event
+      $("#dynamic_submit").keypress(function (e) {
+        if (e.which == 13) {
+          $("#dynamic_submit").click();
+        }
+      })
+
     });
 
-    $('#jobDelete').on('click', ()=>{
-      let deletedJobId = 2;
-      let nextJobId = deleteJob(jobsList, deletedJobId);
-      if(nextJobId > 0) {
-        generateJobSwitcher(jobsList);
-        selectJobAndUpdateView(thisGraph, jobsList, nextJobId);
-      } else {
-      }
+    $('#jobDelete').on('click', () => {
+      inAndOutEditMode();
     });
 
     // handle uploaded data
@@ -193,7 +271,8 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
             });
             thisGraph.edges = newEdges;
 
-            let newJob = new Job(thisGraph.nodes, thisGraph.edges, thisGraph.egid, thisGraph.idct);
+            let jobName = jsonObj.job ? jsonObj.job.name : undefined;
+            let newJob = new Job(thisGraph.nodes, thisGraph.edges, thisGraph.egid, thisGraph.idct, jobName);
             addJob(jobsList, newJob)
             selectJobAndUpdateView(thisGraph, jobsList, newJob.id);
           } catch (err) {
@@ -832,10 +911,11 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
 
   }
 
+  //UI manipulate region
   function generateJobSwitcher(jobsList) {
     let jobSwitcherString = '';
     jobsList.forEach(job => {
-      jobSwitcherString = jobSwitcherString + `<div class="job-item"><button class="job-btn" value="${job.id}">${job.jobName}</button></div>`
+      jobSwitcherString = jobSwitcherString + `<div class="job-item"><button class="job-btn" value="${job.id}">${job.name}</button><button class="delete-btn" value="delete ${job.id}">X</button></div>`
     });
     $('#jobContainer').html(jobSwitcherString);
   }
@@ -843,6 +923,7 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
   function selectJobAndUpdateView(thisGraph, jobsList, jobId) {
     let nodeIndex;
     let currentJob;
+    thisGraph.deleteGraph(true);
     $('.job-selected').removeClass('job-selected');
     if (jobsList) {
 
@@ -863,6 +944,19 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
     thisGraph.updateGraph();
   }
 
+  //this function is used to manipulate the dom element when in and out the job edit mode
+  function inAndOutEditMode() {
+    $('.job-item').toggleClass('show-delete-function');
+    editJobOrNot = !editJobOrNot;
+    if (editJobOrNot) {
+      $('#jobAdderContainer').css('display', 'none');
+      $('#jobDelete').html('Quit Edit');
+    } else {
+      $('#jobAdderContainer').css('display', 'block');
+      $('#jobDelete').html('Edit');
+    }
+  }
+  //region ends
 
   //this function will return the newAdded job id number
   function addJob(jobsList, newJob) {
@@ -872,6 +966,16 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
     return jobId - 1;
   }
 
+  function getJobById(jobsList, jobId) {
+    let targetJob;
+    jobsList.forEach(e=> {
+      if(e.id === jobId) {
+        targetJob = e;
+      }
+    });
+
+    return targetJob;
+  }
   //this function has four condition and will select or return the job 
   //1. delete one is not selected job
   //2. it is selected one but not the last one. go back to the same index in the list
@@ -880,18 +984,18 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
   function deleteJob(jobsList, deleteJobId) {
     //TODO add a selectedJob global variable
     let deleteIndex;
-    if(jobsList) {
-      jobsList.forEach((e,i) =>{
-        if(e.id === parseInt(deleteJobId)) {
+    if (jobsList) {
+      jobsList.forEach((e, i) => {
+        if (e.id === parseInt(deleteJobId)) {
           deleteIndex = i;
-          jobsList.splice(i,1);
+          jobsList.splice(i, 1);
         }
       });
-      if(selectedJob && selectedJob.id === deleteJobId) {
-        if(jobsList.length > 0 && jobsList[deleteIndex]) {
+      if (selectedJob && selectedJob.id === deleteJobId) {
+        if (jobsList.length > 0 && jobsList[deleteIndex]) {
           return jobsList[deleteIndex].id;
-        } else if(jobsList.length > 0 && !jobsList[deleteIndex]) { 
-          return jobsList[deleteIndex-1].id;
+        } else if (jobsList.length > 0 && !jobsList[deleteIndex]) {
+          return jobsList[deleteIndex - 1].id;
         }
       } else {
         return selectedJob.id;
@@ -903,8 +1007,8 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
   // function updateView(currentJob) {
   // }
 
-  function Job(nodes, edges, edgeId, idct) {
-    this.jobName = `Job${jobId + 1}`;
+  function Job(nodes, edges, edgeId, idct, name) {
+    this.name = name ? name : `Job${jobId + 1}`;
     this.id = jobId;
     this.nodes = nodes;
     this.edges = edges;
@@ -912,6 +1016,37 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
     this.idct = idct;
   }
 
+  //this part is for generate the modal dynamic
+  function ModalTemplate(modalName, modalContentArray) {
+    this.modalName = modalName;
+    //ModalContentItem Array
+    this.modalContentArray = modalContentArray;
+  }
+
+  // function ModalContentItem(itemName, itemType, optionInfo, defaultValue) {
+  //   this.name = itemName;
+
+  //   this.type = itemType;
+
+  //   this.optionInfo = optionInfo;
+  //   this.defaultValue = defaultValue;
+  // }
+
+  function generateModalDynamically(modalTemplate) {
+    let modalHeaderString = modalTemplate.modalName || 'No Modal Name defined';
+    let modalContentString = '';
+    $('#dynamicModalHeader').html(modalTemplate.modalName);
+    modalTemplate.modalContentArray.forEach(e => {
+      let contentHtmlString = `<div class="form-group">
+      <label for="${e.inputId}_input">${e.name}</label>
+      <input type="${e.type}" name="${e.name}" class="form-control" id="${e.inputId}" placeholder="${e.defaultValue}"
+          autofocus>
+      </div>`;
+      modalContentString = modalContentString + contentHtmlString;
+    });
+
+    $('#dynamicModalBody').html(modalContentString);
+  }
   //find a root node for the graph which has no parent node with smaller id
   // function findRootNode(nodes, edges) {
   //   // value for each entry is the parentIndex;

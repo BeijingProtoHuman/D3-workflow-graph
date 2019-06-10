@@ -8,13 +8,13 @@
 
 <body>
     <div class="job-switcher">
-        <div class="jobs-container" id ="jobContainer">
+        <div class="jobs-container" id="jobContainer">
         </div>
-        <div class="job-adder">
-                <button id="jobAdder" class="job-btn add-btn" value="addNew">+</button>
+        <div class="job-adder" id="jobAdderContainer">
+            <button id="jobAdder" class="job-btn add-btn" value="addNew">+</button>
         </div>
         <div class="job-delete">
-            <button id="jobDelete" class="job-btn add-btn" value="addNew">DELETE</button>
+            <button id="jobDelete" class="job-btn add-btn" value="editJob">Edit</button>
         </div>
     </div>
     <div class="modal fade" id="myModal" role="dialog" aria-labelledby="myModalLabel">
@@ -77,6 +77,25 @@
         </div>
     </div>
 
+    <div class="modal fade" id="dynamicModal" role="dialog" aria-labelledby="myModalLabel">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+                            aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="dynamicModalHeader"></h4>
+                </div>
+                <div class="modal-body" id="dynamicModalBody">
+                </div>
+                <div class="modal-footer" id="dynamicModalFooter">
+                    <button type="button" class="btn btn-default" data-dismiss="modal"><span
+                            class="glyphicon glyphicon-remove" aria-hidden="true"></span>close</button>
+                    <button type="button" id="dynamic_submit" class="btn btn-primary" data-dismiss="modal"><span
+                            class="glyphicon glyphicon-floppy-disk" aria-hidden="true"></span>save</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div id="graph">
         <div id="toolbox">

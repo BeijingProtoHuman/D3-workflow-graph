@@ -99,7 +99,7 @@ path.link.selected {
 
 .job-switcher {
     position: fixed;
-    left: 0px;
+    left: 0px; 
     top: 0px;
     background: rgba(0, 0, 0, 0.7);
     color: white;
@@ -107,7 +107,12 @@ path.link.selected {
     min-width: 150px;
     overflow: auto;
 }
-.job-item {}
+
+.job-item {
+    height: 40px;
+    box-shadow: inset 0px 2px 5px 0px rgba(0,0,0,0.65);
+    transition: transform ease-in .3s;
+}
 .job-btn {
     padding: 10px;
     text-align: center;
@@ -127,4 +132,27 @@ path.link.selected {
 
 .add-btn {
     font-size: 1.2em;
+}
+
+.delete-btn {
+    position: absolute;
+    background: #e74c3c;
+    right: -40px;
+    height: 40px;
+    width: 40px;
+    outline:none;
+    border: none;
+    box-shadow: inset 4px 2px 3px 0px rgba(0,0,0,0.65);
+}
+
+
+.delete-btn:active, :focus  {
+    outline: none;
+}
+.delete-btn:hover {
+    background: #ee8377;
+}
+
+.show-delete-function {
+    transform: translateX(-40px);
 }
