@@ -156,10 +156,11 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
     // handle download data
     d3.select("#download-input").on("click", function () {
       var saveEdges = [];
+      var saveNodes = thisGraph.nodes.map(node => new NodeInfo(node));
       thisGraph.edges.forEach(function (val, i) {
         saveEdges.push({ source: val.source.id, target: val.target.id, func: val.func });
       });
-      var blob = new Blob([window.JSON.stringify({ "job": { name: selectedJob.name }, "nodes": thisGraph.nodes, "edges": saveEdges })], { type: "text/plain;charset=utf-8" });
+      var blob = new Blob([window.JSON.stringify({ "job": { name: selectedJob.name }, "nodes": saveNodes, "edges": saveEdges })], { type: "text/plain;charset=utf-8" });
       saveAs(blob, "mydag.json");
     });
 
@@ -198,6 +199,7 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
           generateJobSwitcher(jobsList);
           selectJobAndUpdateView(thisGraph, jobsList, nextJobId);
         } else {
+          thisGraph.deleteGraph(true);
           generateJobSwitcher(jobsList);
           $('#jobAdder').click();
         }
@@ -238,6 +240,10 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
       inAndOutEditMode();
     });
 
+    $('#graphFormat').on('click', () => {
+      formatNodes(thisGraph, 300, 200);
+      thisGraph.updateGraph();
+    });
     // handle uploaded data
     d3.select("#upload-input").on("click", function () {
       document.getElementById("hidden-file-upload").click();
@@ -257,7 +263,9 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
             thisGraph.deleteGraph(true);
             thisGraph.nodes = jsonObj.nodes;
 
-            formatNodes(thisGraph.nodes, 300, 200);
+            //TODO move the attachInfo function into format just outside for now
+
+            // validateGraphFormat(thisGraph);
             thisGraph.setIdCt(jsonObj.nodes.length + 1);
             var newEdges = jsonObj.edges;
             newEdges.forEach(function (e, i) {
@@ -270,6 +278,8 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
               thisGraph.egid++;
             });
             thisGraph.edges = newEdges;
+
+            formatNodes(thisGraph, 300, 200);
 
             let jobName = jsonObj.job ? jsonObj.job.name : undefined;
             let newJob = new Job(thisGraph.nodes, thisGraph.edges, thisGraph.egid, thisGraph.idct, jobName);
@@ -518,6 +528,7 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
       consts = thisGraph.consts;
     // reset the states
     state.shiftNodeDrag = false;
+    state.justDragged = false;
     d3node.classed(consts.connectClass, false);
 
     var mouseDownNode = state.mouseDownNode;
@@ -531,13 +542,12 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
       var newEdge = { id: thisGraph.egid++, source: mouseDownNode, target: d, func: 'default' };
       if (d3.event.shiftKey) {
         //reset edgeModel input
-        $('#edge_func').val('');
+        $('#edge_func').val(d.func && d.func !== '' ? d.func : 'default');
         //reset area ends
         $("#edgeModal").modal();
         /**
          * handle save method
         */
-        $('#edge_func').val(d.func);
         $('#edge_func').focus();
         $('#edge_submit').unbind('click').click(function () {
           let func = $('input[name="edge_func"]').val();
@@ -853,12 +863,12 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
   graph.setIdCt(0);
   graph.updateGraph();
 
-  function formatNodes(nodesArr, xDistance, yDistance, direction) {
-    //TODO add format direction
+  function formatNodes(thisGraph, xDistance, yDistance, direction) {
+    attachParentsAndChildrenInfoToNode();
     //find nodes borders
-    let leftBorder = findBorderCoordinate(nodesArr, true, false);
-    let rightBorder = findBorderCoordinate(nodesArr, true, true);
-    let startNode = findStartNode(nodesArr.slice(), true);
+    let leftBorder = findBorderCoordinate(thisGraph.nodes, true, false);
+    let rightBorder = findBorderCoordinate(thisGraph.nodes, true, true);
+    let startNode = findStartNode(thisGraph.nodes.slice(), true);
     //TODO just for test
 
 
@@ -867,7 +877,7 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
     console.log(rightBorder);
 
     while (rightBorder > (leftBorder + (blockCount - 1) * xDistance)) {
-      let calculateNodes = nodesArr.filter(e => {
+      let calculateNodes = thisGraph.nodes.filter(e => {
         return e.x > (startNode.x + ((blockCount - 0.5) * xDistance)) && e.x <= startNode.x + ((blockCount + 0.5) * xDistance);
       });
 
@@ -881,12 +891,30 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
       calculateNodes.sort((a, b) => {
         return a.y - b.y;
       })
-      if (calculateNodes.length > 1) {
-        let topYCoordinate = calculateNodes[0].y;
+      if (calculateNodes.length >= 1) {
+        let middleIndex = findMidlleNodeIndex(calculateNodes, startNode);
+
         calculateNodes.forEach((e, i) => {
-          e.y = startNode.y + i * yDistance;
+          if (i === middleIndex) {
+            e.y = startNode.y
+          } else {
+            e.y = startNode.y + (i - middleIndex) * yDistance;
+          }
         });
       }
+    }
+
+    function findMidlleNodeIndex(nodesList, startNode) {
+      let yDifference = Infinity;
+      let mostCloseIndex = -1;
+      nodesList.forEach((e, i) => {
+        if (Math.abs(e.y - startNode.y) < yDifference) {
+          yDifference = Math.abs(e.y - startNode.y);
+          mostCloseIndex = i;
+        }
+      })
+
+      return mostCloseIndex;
     }
 
     function findBorderCoordinate(nodeArr, isXCoordinate, isMax) {
@@ -895,7 +923,7 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
         return isXCoordinate ? e.x : e.y;
       })
 
-      resultCoordinate = coordinateArray.reduce((a,b) => {
+      resultCoordinate = coordinateArray.reduce((a, b) => {
         return isMax ? (a > b ? a : b) : (a < b ? a : b);
       })
 
@@ -903,14 +931,37 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
     }
 
     function findStartNode(nodeArr, isXCoordinate) {
-      let startNode = nodeArr.reduce((a, b) =>  {
-        return isXCoordinate ? ( a.x < b.x ? a : b ) : ( a.y < b.y ? a : b );
+      let startNodeCandidates = nodeArr.filter(e => {
+        return e.parents.length === 0;
+      });
+      let startNode = startNodeCandidates.reduce((a, b) => {
+        return (a.x < b.x) || (a.x === b.x && a.id < b.id) ? a : b;
       });
       return startNode;
     }
 
+    //this is work for format the layout of nodes
+    function attachParentsAndChildrenInfoToNode() {
+      // special case will list below
+      // 1. one node has two or above children in a single horizontal vertical line 
+      let calculateMap = new Map();
+      thisGraph.nodes.forEach(e => {
+        calculateMap.set(e.id, Object.assign(e, { parents: [], children: [] }))
+      });
+
+      thisGraph.edges.forEach(e => {
+        calculateMap.get(parseInt(e.target.id)).parents.push(e.source.id);
+        calculateMap.get(parseInt(e.source.id)).children.push(e.target.id)
+      });
+
+      console.log(calculateMap);
+      console.log('******************************');
+      console.log(thisGraph.nodes);
+    }
 
   }
+
+
 
   //UI manipulate region
   function generateJobSwitcher(jobsList) {
@@ -969,8 +1020,8 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
 
   function getJobById(jobsList, jobId) {
     let targetJob;
-    jobsList.forEach(e=> {
-      if(e.id === jobId) {
+    jobsList.forEach(e => {
+      if (e.id === jobId) {
         targetJob = e;
       }
     });
@@ -1024,14 +1075,16 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
     this.modalContentArray = modalContentArray;
   }
 
-  // function ModalContentItem(itemName, itemType, optionInfo, defaultValue) {
-  //   this.name = itemName;
-
-  //   this.type = itemType;
-
-  //   this.optionInfo = optionInfo;
-  //   this.defaultValue = defaultValue;
-  // }
+  //for the nodes save to database
+  function NodeInfo(graphNode) {
+    this.id = graphNode.id;
+    this.title = graphNode.title;
+    this.func = graphNode.func;
+    this.describe = graphNode.describe;
+    this.options = graphNode.options || {};
+    this.x = graphNode.x;
+    this.y = graphNode.y;
+  }
 
   function generateModalDynamically(modalTemplate) {
     let modalHeaderString = modalTemplate.modalName || 'No Modal Name defined';
@@ -1048,25 +1101,5 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
 
     $('#dynamicModalBody').html(modalContentString);
   }
-  //find a root node for the graph which has no parent node with smaller id
-  // function findRootNode(nodes, edges) {
-  //   // value for each entry is the parentIndex;
-  //   let calculatedMap = new Map();
-  //   let rootNodeId;
-  //   nodes.forEach(e => {
-  //     calculatedMap.set(e.id, [])
-  //   });
 
-  //   edges.forEach(e => {
-  //     calculatedMap.get(parseInt(e.target.id)).push(e.source.id);
-  //   });
-
-  //   calculatedMap.forEach( (value, key)=> {
-  //       if(!value.length) {
-  //         if(!rootNodeId || (rootNodeId && key < rootNodeId) ) {
-
-  //         }
-  //       }
-  //   });
-  // }
 })(window.d3, window.saveAs, window.Blob);

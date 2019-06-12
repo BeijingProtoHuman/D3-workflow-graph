@@ -105,7 +105,8 @@ path.link.selected {
     color: white;
     height: 100%;
     min-width: 150px;
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .job-item {
@@ -155,4 +156,27 @@ path.link.selected {
 
 .show-delete-function {
     transform: translateX(-40px);
+}
+
+.graph-format {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+
+}
+
+.graph-format:hover {
+    
+}
+
+.format-btn {
+    width: 150px;
+    padding: 10px; 
+    background: #0080ff;
+    border-radius: 10px;
+    color: white;
+    border: none;
+}
+.format-btn:hover {
+    background: dodgerblue;
 }
