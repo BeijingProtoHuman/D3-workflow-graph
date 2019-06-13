@@ -11,15 +11,57 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
   //Jobs related variable
   var jobsList = [];
   var jobId = 0;
-  var selectedJob = null;
+  var selectedJob = {};
   var editJobOrNot = false;
 
   let jobAdderTemplate = {
     name: 'Job Info', content: [{
-      name: 'Job Name', inputId: 'jobName', type: 'text', optionInfo: {
+      name: 'Job Name', inputId: 'jobName', type: 'text', optionsInfo: {
       }, defaultValue: 'Job Name'
     }]
   };
+
+  //TODELETE test dynamic template 
+  // this is the structure of node function template
+  let testTemplate1 = {
+    funcId: 1, funcName: 'CSV', content: [{
+      name: 'Test Prop1', inputId: 'testProp1', type: 'select', optionsInfo: [
+        'default select', 'selection1', 'selection2'
+      ], defaultValue: 'default select'
+    }, {
+      name: 'Test Prop2', inputId: 'testProp2', type: 'text', optionsInfo: [], defaultValue: 'defaultValue1'
+    }]
+  };
+
+  let testTemplate2 = {
+    funcId: 2, funcName: 'TestFunc 2', content: [{
+      name: 'Test Input1', inputId: 'testInput1', type: '2', optionsInfo: [
+      ], defaultValue: 'default value2'
+    }, {
+      name: 'Test Input2', inputId: 'testInput2', type: 'text', optionsInfo: [], defaultValue: 'daultValue2'
+    }]
+  };
+
+  //TODO: generate a key value map for different templates from what ever sources
+  let templateMap = new Map();
+  let currentTemplate;
+  templateMap.set(testTemplate1.funcId, testTemplate1);
+  templateMap.set(testTemplate2.funcId, testTemplate2);
+  generateFunctionsSelect();
+
+  function generateFunctionsSelect() {
+    if (templateMap) {
+      let optionsString = '';
+      templateMap.forEach((templateItem, key) => {
+        optionsString = optionsString + `<option value="${templateItem.funcId}">${templateItem.funcName}</option>`;
+      });
+      generateModalDynamically2(templateMap.values().next().value);
+      $('#txt_func').html(optionsString);
+      $('#txt_func').on('change', function (e) {
+        generateModalDynamically2(templateMap.get(parseInt(e.target.value)));
+      });
+    }
+  }
 
   // define graphcreator object
   var GraphCreator = function (svg, nodes, edges) {
@@ -156,11 +198,8 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
     // handle download data
     d3.select("#download-input").on("click", function () {
       var saveEdges = [];
-      var saveNodes = thisGraph.nodes.map(node => new NodeInfo(node));
-      thisGraph.edges.forEach(function (val, i) {
-        saveEdges.push({ source: val.source.id, target: val.target.id, func: val.func });
-      });
-      var blob = new Blob([window.JSON.stringify({ "job": { name: selectedJob.name }, "nodes": saveNodes, "edges": saveEdges })], { type: "text/plain;charset=utf-8" });
+      var saveNodes = thisGraph.nodes;
+      var blob = new Blob([window.JSON.stringify({ "job": { name: selectedJob.name ? selectedJob.name : 'undefined job' }, "nodes": saveNodes, "edges": saveEdges })], { type: "text/plain;charset=utf-8" });
       saveAs(blob, "mydag.json");
     });
 
@@ -201,6 +240,8 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
         } else {
           thisGraph.deleteGraph(true);
           generateJobSwitcher(jobsList);
+          //reset select job
+          selectedJob = {};
           $('#jobAdder').click();
         }
       }
@@ -208,12 +249,7 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
     });
 
     $('#jobAdder').on('click', () => {
-      // let testTemplate = {
-      //   name: 'test D Model', content: [{
-      //     contentName: 'testContentName', contentType: 'text', optionInfo: {
-      //     }, defaultValue: 'defaultValue'
-      //   }]
-      // };
+
       let addJobTemplate = new ModalTemplate(jobAdderTemplate.name, jobAdderTemplate.content);
       generateModalDynamically(addJobTemplate);
 
@@ -298,6 +334,7 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
 
     });
 
+    //Jquery handler region ends
 
     // handle delete graph
     d3.select("#delete-graph").on("click", function () {
@@ -580,31 +617,25 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
         state.justDragged = false;
       } else {
         // clicked on a node, not dragged
-        console.log(d);
         if (d3.event.shiftKey) {
           // shift-clicked node: edit text content
           ///console.log('shift clicked on this node')
-          $("#myModal").modal();
-          $('input[name="txt_node_id"]').val(d.title);
-          $('input[name="txt_func"]').val(d.func);
-          $('input[name="txt_statu"]').val(d.describe);
-          /**
-           * handle save method
-          */
 
+          nodeFormInit(d)
           $('#btn_submit').unbind('click').click(function () {
             //console.log('inner id' + d.id);
             let title = $('input[name="txt_node_id"]').val();
-            let func = $('input[name="txt_func"]').val();
+            let func = $('select[name="txt_func"]').val();
             let describe = $('input[name="txt_statu"]').val();
             d.title = title;
             d.func = func;
-            d.describe = describe
+            d.describe = describe;
+            extractPropertiesAndAssign(d);
             d3node.selectAll("text").remove();
             fuckingoff(d, d3node, thisGraph)
           });
           //add enter key event
-          $("#txt_statu").keypress(function (e) {
+          $("#myModal").keypress(function (e) {
             if (e.which == 13) {
               $("#btn_submit").click();
             }
@@ -648,31 +679,25 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
     } else if (state.graphMouseDown && d3.event.shiftKey) {
       //get xy coordinations 
       let xycoords = d3.mouse(thisGraph.svgG.node());
-
-      // reset form before create new one
-      $('input[name="txt_node_id"]').val(consts.defaultTitle);
-      $('input[name="txt_func"]').val('');
-      $('input[name="txt_statu"]').val('');
-      //reset area end
-
-      $("#myModal").modal();
+      nodeFormInit();
       $('#btn_submit').unbind('click').click(function () {
         //console.log('inner id' + d.id);
         let title = $('input[name="txt_node_id"]').val();
-        let func = $('input[name="txt_func"]').val();
+        let func = $('select[name="txt_func"]').val();
         let describe = $('input[name="txt_statu"]').val();
         var d = { id: thisGraph.idct++, title: title ? title : consts.defaultTitle, func: func, describe: describe, x: xycoords[0], y: xycoords[1] };
+        extractPropertiesAndAssign(d);
         thisGraph.nodes.push(d);
         thisGraph.updateGraph();
       });
       //add enter key event
-      $("#txt_statu").keypress(function (e) {
+      $("#myModal").keypress(function (e) {
         if (e.which == 13) {
           $("#btn_submit").click();
         }
       })
     } else if (state.shiftNodeDrag) {
-      // dragged from node
+      // dragged from node 
       state.shiftNodeDrag = false;
       thisGraph.dragLine.classed("hidden", true);
     }
@@ -791,9 +816,11 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
         if (state.shiftNodeDrag) {
           d3.select(this).classed(consts.connectClass, true);
         }
+        //TODO calculate mouse coordinate here and show the info display
       })
       .on("mouseout", function (d) {
         d3.select(this).classed(consts.connectClass, false);
+        //TODO hide info display when mouse out the node circle
       })
       .on("mousedown", function (d) {
         thisGraph.circleMouseDown.call(thisGraph, d3.select(this), d);
@@ -1081,9 +1108,33 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
     this.title = graphNode.title;
     this.func = graphNode.func;
     this.describe = graphNode.describe;
-    this.options = graphNode.options || {};
     this.x = graphNode.x;
     this.y = graphNode.y;
+  }
+  //this function is used to assign extra propTo a node object
+  function extractPropertiesAndAssign(nodeObject) {
+    let propertiesList = [];
+    $('#myModalDynamicArea .form-control ').each(
+      function () {
+        let newObject = {};
+        newObject[this.id] = this.value;
+        propertiesList.push(newObject);
+      }
+    );
+    propertiesList.forEach(e => {
+      Object.assign(nodeObject, e);
+    })
+  }
+
+  //this function is used to retrieve the propties and assign to form
+  function retrieveProptiesAndAssign(nodeObject) {
+    if (currentTemplate) {
+      currentTemplate.content.forEach(contentItem => {
+        $(`.form-group #${contentItem.inputId}`).val(
+          nodeObject ? nodeObject[contentItem.inputId] : contentItem.defaultValue
+        );
+      });
+    }
   }
 
   function generateModalDynamically(modalTemplate) {
@@ -1102,4 +1153,73 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
     $('#dynamicModalBody').html(modalContentString);
   }
 
+  function generateModalDynamically2(modalTemplate) {
+    currentTemplate = modalTemplate;
+    console.log(currentTemplate);
+    let modalContentString = '';
+    modalTemplate.content.forEach(e => {
+      let contentHtmlString;
+      if (e.type && e.type === 'select') {
+        let optionsString = '';
+
+        e.optionsInfo.forEach(optionInfo => {
+          if (e.defaultValue === optionInfo) {
+            optionsString = optionsString + `<option selected value="${optionInfo}">${optionInfo}</option>`
+          } else {
+            optionsString = optionsString + `<option value="${optionInfo}">${optionInfo}</option>`
+          }
+        });
+
+        contentHtmlString = `<div class="form-group"><label for="${e.inputId}">${e.name}</label><select class="form-control" id="${e.inputId}">${optionsString}</select></div>`;
+      } else {
+        contentHtmlString = `<div class="form-group"><label for="${e.inputId}">${e.name}</label><input type="${e.type}" name="${e.name}" class="form-control" id="${e.inputId}" placeholder="${e.defaultValue}"autofocus></div>`;
+      }
+
+      modalContentString = modalContentString + contentHtmlString;
+    });
+
+    $('#myModalDynamicArea').html(modalContentString);
+  }
+
+  function nodeFormInit(node) {
+    $("#myModal").modal();
+
+    let title = node ? node.title : consts.defaultTitle;
+    //TODO: hard code for now 
+    let func = node ? +node.func : (templateMap ? Array.from(templateMap)[0][0] : 0);
+    let describe = node ? node.describe : '';
+    $('input[name="txt_node_id"]').val(title);
+    //TODO get map first key is too difficult just hold up for a while with hard code
+    $('select[name="txt_func"]').val(func).trigger('change');
+    $('input[name="txt_statu"]').val(describe);
+    retrieveProptiesAndAssign(node ? node : undefined);
+  }
+
+  function edgeFormInit(edge) {
+
+  }
+
+  function calculateXAndY() {
+    //  TODO: add a flow dialog for node infomation display
+    var eventDoc, doc, body;
+    event = event || window.event; // IE-ism
+    // If pageX/Y aren't available and clientX/Y are,
+    // calculate pageX/Y - logic taken from jQuery.
+    // (This is to support old IE)
+    if (event.pageX == null && event.clientX != null) {
+      eventDoc = (event.target && event.target.ownerDocument) || document;
+      doc = eventDoc.documentElement;
+      body = eventDoc.body;
+
+      event.pageX = event.clientX +
+        (doc && doc.scrollLeft || body && body.scrollLeft || 0) -
+        (doc && doc.clientLeft || body && body.clientLeft || 0);
+      event.pageY = event.clientY +
+        (doc && doc.scrollTop || body && body.scrollTop || 0) -
+        (doc && doc.clientTop || body && body.clientTop || 0);
+    }
+
+    console.log(`page x coordinate: ${event.pageX}**********page y coordinate: ${event.pageY}`);
+    return { x: event.pageX, y: eventPageY };
+  }
 })(window.d3, window.saveAs, window.Blob);
