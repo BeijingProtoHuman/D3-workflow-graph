@@ -59,6 +59,7 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
       $('#txt_func').html(optionsString);
       $('#txt_func').on('change', function (e) {
         generateModalDynamically2(templateMap.get(parseInt(e.target.value)));
+        retrieveProptiesAndAssign();
       });
     }
   }
@@ -1196,7 +1197,6 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
   }
 
   function edgeFormInit(edge) {
-
   }
 
   function calculateXAndY() {
