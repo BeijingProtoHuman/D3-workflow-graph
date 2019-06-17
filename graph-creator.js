@@ -1141,7 +1141,6 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
   }
 
   function generateModalDynamically(modalTemplate) {
-    let modalHeaderString = modalTemplate.modalName || 'No Modal Name defined';
     let modalContentString = '';
     $('#dynamicModalHeader').html(modalTemplate.modalName);
     modalTemplate.modalContentArray.forEach(e => {
@@ -1188,11 +1187,9 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
     $("#myModal").modal();
     $('input[name="txt_node_id"]').focus();
     let title = node ? node.title : consts.defaultTitle;
-    //TODO: hard code for now 
     let func = node ? +node.func : (templateMap ? Array.from(templateMap)[0][0] : 0);
     let describe = node ? node.describe : '';
     $('input[name="txt_node_id"]').val(title);
-    //TODO get map first key is too difficult just hold up for a while with hard code
     $('select[name="txt_func"]').val(func).trigger('change');
     $('input[name="txt_statu"]').val(describe);
     retrieveProptiesAndAssign(node ? node : undefined);
@@ -1205,7 +1202,7 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
     let objectType = ''
     let objectInfoString = '';
     let nodeNotDisplayProperty = ['id', 'x', 'y'];
-    let edgeNotDisplayProperty = ['id', 'source', 'target'];
+    let edgeNotDisplayProperty = ['id', 'source', 'target','children', 'parents'];
     if (infoObject) {
       if (infoObject['x']) {
         objectType = 'node';
