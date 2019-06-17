@@ -580,7 +580,7 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
       var newEdge = { id: thisGraph.egid++, source: mouseDownNode, target: d, func: 'default' };
       if (d3.event.shiftKey) {
         //reset edgeModel input
-        $('#edge_func').val(d.func && d.func !== '' ? d.func : 'default');
+        $('#edge_func').val(d.func && d.func !== '' ? templateMap.get(parseInt(d.func)).funcName : 'default');
         //reset area ends
         $("#edgeModal").modal();
         /**
@@ -622,9 +622,8 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
           // shift-clicked node: edit text content
           ///console.log('shift clicked on this node')
 
-          nodeFormInit(d)
+          nodeFormInit(d);
           $('#btn_submit').unbind('click').click(function () {
-            //console.log('inner id' + d.id);
             let title = $('input[name="txt_node_id"]').val();
             let func = $('select[name="txt_func"]').val();
             let describe = $('input[name="txt_statu"]').val();
@@ -778,6 +777,11 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
       )
       .on("mouseup", function (d) {
         state.mouseDownLink = null;
+      }).on("mouseover", function (d) {
+        getInfoAndDisplay(d);
+        $('.info-display-panel').css('display', 'block');
+      }).on("mouseout", function (d) {
+        $('.info-display-panel').css('display', 'none');
       });
 
     p.append("text").attr("dy", -20)
@@ -817,17 +821,19 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
         if (state.shiftNodeDrag) {
           d3.select(this).classed(consts.connectClass, true);
         }
-        //TODO calculate mouse coordinate here and show the info display
+        getInfoAndDisplay(d);
+        $('.info-display-panel').css('display', 'block');
       })
       .on("mouseout", function (d) {
         d3.select(this).classed(consts.connectClass, false);
+        $('#infoDisplayPanel').css('display', 'none');
         //TODO hide info display when mouse out the node circle
       })
       .on("mousedown", function (d) {
         thisGraph.circleMouseDown.call(thisGraph, d3.select(this), d);
       })
       .on("mouseup", function (d) {
-        //Sconsole.log(d3.select(this));
+        //console.log(d3.select(this));
         thisGraph.circleMouseUp.call(thisGraph, d3.select(this), d);
       })
       .call(thisGraph.drag);
@@ -1114,17 +1120,13 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
   }
   //this function is used to assign extra propTo a node object
   function extractPropertiesAndAssign(nodeObject) {
-    let propertiesList = [];
+    let extraProps = {};
     $('#myModalDynamicArea .form-control ').each(
       function () {
-        let newObject = {};
-        newObject[this.id] = this.value;
-        propertiesList.push(newObject);
+        extraProps[this.id] = this.value;
       }
     );
-    propertiesList.forEach(e => {
-      Object.assign(nodeObject, e);
-    })
+    Object.assign(nodeObject, extraProps);
   }
 
   //this function is used to retrieve the propties and assign to form
@@ -1184,7 +1186,7 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
 
   function nodeFormInit(node) {
     $("#myModal").modal();
-
+    $('input[name="txt_node_id"]').focus();
     let title = node ? node.title : consts.defaultTitle;
     //TODO: hard code for now 
     let func = node ? +node.func : (templateMap ? Array.from(templateMap)[0][0] : 0);
@@ -1199,27 +1201,35 @@ document.onload = (function (d3, saveAs, Blob, undefined) {
   function edgeFormInit(edge) {
   }
 
-  function calculateXAndY() {
-    //  TODO: add a flow dialog for node infomation display
-    var eventDoc, doc, body;
-    event = event || window.event; // IE-ism
-    // If pageX/Y aren't available and clientX/Y are,
-    // calculate pageX/Y - logic taken from jQuery.
-    // (This is to support old IE)
-    if (event.pageX == null && event.clientX != null) {
-      eventDoc = (event.target && event.target.ownerDocument) || document;
-      doc = eventDoc.documentElement;
-      body = eventDoc.body;
-
-      event.pageX = event.clientX +
-        (doc && doc.scrollLeft || body && body.scrollLeft || 0) -
-        (doc && doc.clientLeft || body && body.clientLeft || 0);
-      event.pageY = event.clientY +
-        (doc && doc.scrollTop || body && body.scrollTop || 0) -
-        (doc && doc.clientTop || body && body.clientTop || 0);
+  function getInfoAndDisplay(infoObject) {
+    let objectType = ''
+    let objectInfoString = '';
+    let nodeNotDisplayProperty = ['id', 'x', 'y'];
+    let edgeNotDisplayProperty = ['id', 'source', 'target'];
+    if (infoObject) {
+      if (infoObject['x']) {
+        objectType = 'node';
+      } else {
+        objectType = 'edge';
+      }
+      objectInfoString = objectInfoString.concat(`<h4>${objectType}  info</h4>`);
+      for (let propName in infoObject) {
+        if (objectType === 'node') {
+          if (!nodeNotDisplayProperty.includes(propName)) {
+            if (propName === 'func') {
+              let funcName = templateMap.get(parseInt(infoObject[propName])).funcName;
+              objectInfoString = objectInfoString.concat(`<div>${propName} : ${funcName}</div>`);
+            } else {  
+              objectInfoString = objectInfoString.concat(`<div>${propName} : ${infoObject[propName]}</div>`);
+            }
+          }
+        } else {
+          if (!edgeNotDisplayProperty.includes(propName)) {
+            objectInfoString = objectInfoString.concat(`<div>${propName} : ${infoObject[propName]}</div>`);
+          }
+        }
+      }
+      $('#infoDisplayPanel').html(objectInfoString);
     }
-
-    console.log(`page x coordinate: ${event.pageX}**********page y coordinate: ${event.pageY}`);
-    return { x: event.pageX, y: eventPageY };
   }
 })(window.d3, window.saveAs, window.Blob);
